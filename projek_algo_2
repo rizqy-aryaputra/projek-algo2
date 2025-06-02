@@ -2,6 +2,7 @@ import csv
 import os
 from datetime import datetime, timedelta
 
+
 file_film = "film.csv"
 file_jadwal = "jadwal.csv"
 file_studio = "studio.csv"
