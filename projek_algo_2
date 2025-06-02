@@ -148,11 +148,12 @@ def login_pengguna():
         for row in reader:
             if row['username'] == username and row['password'] == password:
                 print(f'\nSelamat datang, {username}!\n')
-                input('Fitur pengguna belum tersedia. Tekan Enter untuk logout...')
-                return main()
+                menu_pengguna(username)
+                return
 
     print('Login gagal. Coba lagi.\n')
-    return login_pengguna()  
+    return login_pengguna()
+
 
 def keluar():
     print('Terima kasih telah menggunakan Sistem Pemesanan Tiket Bioskop!')
@@ -365,6 +366,126 @@ def manajemen_studio():
 
 def riwayat_transaksi():
     print("Fitur riwayat transaksi belum tersedia.")
+
+#PENGGUNA----------------------------------------------------------------------------------------------------------------------
+def menu_pengguna(username):
+    while True:
+        print('\n=== MENU PENGGUNA ===')
+        print('1. Lihat Jadwal Film')
+        print('2. Beli Tiket')
+        print('3. Riwayat Transaksi')
+        print('4. Logout')
+
+        pilihan = input('Pilih menu: ')
+        if pilihan == '1':
+            lihat_jadwal()
+        elif pilihan == '2':
+            beli_tiket(username)
+        elif pilihan == '3':
+            lihat_riwayat_transaksi(username)
+        elif pilihan == '4':
+            return main()
+        else:
+            print('❌ Pilihan tidak valid.')
+
+
+def beli_tiket(username):
+    daftar_jadwal = muat_jadwal()
+    if not daftar_jadwal:
+        print("❌ Belum ada jadwal tayang.")
+        return
+
+    print("\n=== DAFTAR JADWAL TAYANG ===")
+    for idx, jadwal in enumerate(daftar_jadwal, start=1):
+        print(f"{idx}. {jadwal['nama_film']} | {jadwal['jam_mulai']} - {jadwal['jam_selesai']} ({jadwal['durasi']} menit)")
+
+    try:
+        pilihan = int(input("\nPilih nomor film yang ingin dibeli tiketnya: "))
+        if pilihan < 1 or pilihan > len(daftar_jadwal):
+            print("❌ Pilihan tidak valid.")
+            return
+        jadwal_pilihan = daftar_jadwal[pilihan - 1]
+    except ValueError:
+        print("❌ Masukkan angka yang valid.")
+        return
+
+    try:
+        jumlah_tiket = int(input("Jumlah tiket yang ingin dibeli: "))
+        if jumlah_tiket < 1:
+            print("❌ Jumlah tiket minimal 1.")
+            return
+    except ValueError:
+        print("❌ Masukkan angka yang valid.")
+        return
+
+    harga_tiket = 0
+    with open(file_film, mode='r', newline='', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        for film in reader:
+            if film['ID Film'] == jadwal_pilihan['id_film']:
+                harga_tiket = int(film['Harga tiket'])
+                break
+
+    if harga_tiket == 0:
+        print("❌ Gagal mendapatkan harga tiket.")
+        return
+
+    total = harga_tiket * jumlah_tiket
+    print(f"\nTotal harga: Rp{total}")
+    konfirmasi = input("Lanjutkan pembelian? (y/n): ").lower()
+    if konfirmasi != 'y':
+        print("❌ Pembelian dibatalkan.")
+        return
+
+    simpan_riwayat_transaksi(
+        username=username,
+        nama_film=jadwal_pilihan['nama_film'],
+        jam_mulai=jadwal_pilihan['jam_mulai'],
+        jam_selesai=jadwal_pilihan['jam_selesai'],
+        jumlah_tiket=jumlah_tiket,
+        harga_tiket=harga_tiket
+    )
+
+    print("✅ Tiket berhasil dipesan!")
+
+def simpan_riwayat_transaksi(username, nama_film, jam_mulai, jam_selesai, jumlah_tiket, harga_tiket):
+    total_harga = jumlah_tiket * harga_tiket
+    waktu_pesan = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    file_exists = os.path.exists(file_riwayat)
+    with open(file_riwayat, mode='a', newline='', encoding='utf-8') as file:
+        fieldnames = ['username', 'nama_film', 'jam_mulai', 'jam_selesai', 'jumlah_tiket', 'total_harga', 'waktu_pesan']
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow({
+            'username': username,
+            'nama_film': nama_film,
+            'jam_mulai': jam_mulai,
+            'jam_selesai': jam_selesai,
+            'jumlah_tiket': jumlah_tiket,
+            'total_harga': total_harga,
+            'waktu_pesan': waktu_pesan
+        })
+
+def lihat_riwayat_transaksi(username):
+    if not os.path.exists(file_riwayat):
+        print("❌ Belum ada riwayat transaksi.")
+        return
+
+    print(f"\n=== Riwayat Transaksi: {username} ===")
+    with open(file_riwayat, mode='r', newline='', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        riwayat = [row for row in reader if row['username'] == username]
+
+    if not riwayat:
+        print("Tidak ada transaksi ditemukan.")
+        return
+
+    for i, row in enumerate(riwayat, start=1):
+        print(f"{i}. {row['nama_film']} | {row['jam_mulai']} - {row['jam_selesai']} | "
+              f"Jumlah: {row['jumlah_tiket']} | Total: Rp{row['total_harga']} | Waktu: {row['waktu_pesan']}")
+
+
 
 if __name__ == "__main__":
     inisialisasi_file()
